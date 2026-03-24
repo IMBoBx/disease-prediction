@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Disease Predictor</title>
+		<link
+			href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap"
+			rel="stylesheet"
+		/>
+		<link rel="stylesheet" href="styles.css">
+	</head>
+	<body>
+		<div class="grid-bg"></div>
+		<div class="wrapper">
+			<header>
+				<div class="eyebrow">ML Lab Project</div>
+				<h1>Disease<br /><span>Predictor</span></h1>
+				<p class="subtitle">
+					Select your symptoms to receive a predicted diagnosis and
+					severity assessment powered by machine learning.
+				</p>
+			</header>
+
+			<!-- Model comparison banner -->
+			<div id="model-banner">
+				<div class="banner-title">Model Comparison</div>
+				<div class="model-grid" id="model-grid"></div>
+			</div>
+
+			<div class="main-layout">
+				<!-- Left: symptoms -->
+				<div class="symptom-panel">
+					<div class="panel-header">
+						<span class="panel-title">Symptoms</span>
+						<span class="selected-count" id="sel-count"
+							>0 selected</span
+						>
+					</div>
+					<input
+						class="search-input"
+						type="text"
+						placeholder="Search symptoms..."
+						id="search"
+					/>
+					<div class="symptom-grid" id="symptom-grid">
+						<div
+							style="
+								color: var(--muted);
+								font-size: 12px;
+								padding: 8px;
+							"
+						>
+							Loading symptoms...
+						</div>
+					</div>
+					<button class="predict-btn" id="predict-btn" disabled>
+						Predict Disease
+					</button>
+				</div>
+
+				<!-- Right: results -->
+				<div class="results-panel" id="results-panel">
+					<div class="empty-state">
+						<div class="empty-icon">🩺</div>
+						Select at least 2 symptoms<br />and click Predict.
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			const API = "http://localhost:5000";
+			let allSymptoms = [];
+			let selected = new Set();
+
+			// ── Boot ──────────────────────────────────────
+			async function init() {
+				try {
+					const [sympRes, metaRes] = await Promise.all([
+						fetch(`${API}/symptoms`),
+						fetch(`${API}/meta`),
+					]);
+					const sympData = await sympRes.json();
+					const metaData = await metaRes.json();
+
+					allSymptoms = sympData.symptoms;
+					renderSymptoms(allSymptoms);
+					renderModelBanner(metaData);
+				} catch (e) {
+					document.getElementById("symptom-grid").innerHTML =
+						`<div style="color:var(--accent2);font-size:12px;padding:8px;">⚠ Could not connect to Flask server at ${API}.<br/>Make sure app.py is running.</div>`;
+				}
+			}
+
+			// ── Render model comparison ───────────────────
+			function renderModelBanner(meta) {
+				const grid = document.getElementById("model-grid");
+				grid.innerHTML = Object.entries(meta.comparison)
+					.map(([name, stats]) => {
+						const isBest = name === meta.best_model;
+						return `<div class="model-card ${isBest ? "best" : ""}">
+      <div class="model-name">${name} ${isBest ? '<span class="best-badge">BEST</span>' : ""}</div>
+      <div class="model-stats">
+        Accuracy: <strong>${stats.accuracy}%</strong><br/>
+        F1 Score: <strong>${stats.f1}</strong>
+      </div>
+    </div>`;
+					})
+					.join("");
+				document.getElementById("model-banner").style.display = "block";
+			}
+
+			// ── Render symptom tags ───────────────────────
+			function renderSymptoms(symptoms) {
+				const grid = document.getElementById("symptom-grid");
+				grid.innerHTML = symptoms
+					.map(
+						(s) => `
+    <div class="symptom-tag ${selected.has(s) ? "selected" : ""}" data-s="${s}" onclick="toggleSymptom('${s}')">
+      <span class="dot"></span>
+      ${s.replace(/_/g, " ")}
+    </div>
+  `,
+					)
+					.join("");
+			}
+
+			function toggleSymptom(s) {
+				selected.has(s) ? selected.delete(s) : selected.add(s);
+				document.querySelectorAll(".symptom-tag").forEach((el) => {
+					if (el.dataset.s === s)
+						el.classList.toggle("selected", selected.has(s));
+				});
+				document.getElementById("sel-count").textContent =
+					`${selected.size} selected`;
+				document.getElementById("predict-btn").disabled =
+					selected.size < 2;
+			}
+
+			// ── Search ────────────────────────────────────
+			document.getElementById("search").addEventListener("input", (e) => {
+				const q = e.target.value.toLowerCase();
+				const filtered = allSymptoms.filter((s) => s.includes(q));
+				renderSymptoms(filtered);
+			});
+
+			// ── Predict ───────────────────────────────────
+			document
+				.getElementById("predict-btn")
+				.addEventListener("click", async () => {
+					const btn = document.getElementById("predict-btn");
+					btn.disabled = true;
+					btn.innerHTML =
+						'<span class="spinner"></span>Predicting...';
+
+					try {
+						const res = await fetch(`${API}/predict`, {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ symptoms: [...selected] }),
+						});
+						const data = await res.json();
+						renderResults(data);
+					} catch (e) {
+						renderError();
+					} finally {
+						btn.disabled = selected.size < 2;
+						btn.innerHTML = "Predict Disease";
+					}
+				});
+
+			// ── Render results ────────────────────────────
+			function renderResults(data) {
+				const panel = document.getElementById("results-panel");
+				const top = data.top_predictions[0];
+				const sev = data.severity_label.toLowerCase();
+
+				panel.innerHTML = `
+    <div class="result-card" style="animation-delay:0s">
+      <div class="result-label">Top Prediction</div>
+      <div class="top-disease">${top.disease}</div>
+      <div class="top-conf">${top.confidence}% confidence</div>
+
+      <div class="pred-row">
+        ${data.top_predictions
+			.map(
+				(p, i) => `
+          <div class="pred-item">
+            <div class="pred-meta">
+              <span>${p.disease}</span>
+              <span>${p.confidence}%</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill ${i === 0 ? "top" : ""}" style="width:${p.confidence}%"></div>
+            </div>
+          </div>
+        `,
+			)
+			.join("")}
+      </div>
+    </div>
+
+    <div class="result-card" style="animation-delay:0.1s">
+      <div class="result-label">Severity Score</div>
+      <div class="severity-value ${sev}">${data.severity_score}</div>
+      <div class="severity-label ${sev}">${data.severity_label}</div>
+    </div>
+
+    <div class="result-card" style="animation-delay:0.2s">
+      <div class="result-label">Model Used</div>
+      <div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;">${data.model_used}</div>
+      <div class="disclaimer">
+        ⚠ This tool is for educational purposes only and does not constitute medical advice. Always consult a qualified healthcare professional.
+      </div>
+    </div>
+  `;
+			}
+
+			function renderError() {
+				document.getElementById("results-panel").innerHTML = `
+    <div class="empty-state">
+      <div class="empty-icon">⚠</div>
+      Prediction failed.<br/>Check that Flask server is running.
+    </div>`;
+			}
+
+			init();
+		</script>
+	</body>
+</html>

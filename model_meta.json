@@ -1,0 +1,66 @@
+{
+  "best_model": "Logistic Regression",
+  "comparison": {
+    "Logistic Regression": {
+      "accuracy": 98.98,
+      "f1": 0.9898
+    },
+    "Random Forest": {
+      "accuracy": 98.27,
+      "f1": 0.9826
+    },
+    "Decision Tree": {
+      "accuracy": 69.31,
+      "f1": 0.6938
+    },
+    "SVM": {
+      "accuracy": 98.58,
+      "f1": 0.9857
+    }
+  },
+  "num_symptoms": 131,
+  "num_diseases": 41,
+  "diseases": [
+    "(vertigo) Paroymsal  Positional Vertigo",
+    "AIDS",
+    "Acne",
+    "Alcoholic hepatitis",
+    "Allergy",
+    "Arthritis",
+    "Bronchial Asthma",
+    "Cervical spondylosis",
+    "Chicken pox",
+    "Chronic cholestasis",
+    "Common Cold",
+    "Dengue",
+    "Diabetes",
+    "Dimorphic hemmorhoids(piles)",
+    "Drug Reaction",
+    "Fungal infection",
+    "GERD",
+    "Gastroenteritis",
+    "Heart attack",
+    "Hepatitis B",
+    "Hepatitis C",
+    "Hepatitis D",
+    "Hepatitis E",
+    "Hypertension",
+    "Hyperthyroidism",
+    "Hypoglycemia",
+    "Hypothyroidism",
+    "Impetigo",
+    "Jaundice",
+    "Malaria",
+    "Migraine",
+    "Osteoarthristis",
+    "Paralysis (brain hemorrhage)",
+    "Peptic ulcer diseae",
+    "Pneumonia",
+    "Psoriasis",
+    "Tuberculosis",
+    "Typhoid",
+    "Urinary tract infection",
+    "Varicose veins",
+    "hepatitis A"
+  ]
+}
